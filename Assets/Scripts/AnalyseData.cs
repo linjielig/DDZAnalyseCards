@@ -158,11 +158,16 @@ namespace AnalyseCards {
             CardValue startValue,
             out CardValue sequenceStart,
             out CardValue sequenceEnd) {
-            SortedDictionary<CardValue, List<byte>> cards = new SortedDictionary<CardValue, List<byte>>();
+            SortedDictionary<CardValue, List<byte>> cardDatas = new SortedDictionary<CardValue, List<byte>>();
+            CardInfoToListByte(cardInfos, cardDatas);
+            return GetSequenceInfo(cardDatas, type, startValue, out sequenceStart, out sequenceEnd);
+        }
+        static void CardInfoToListByte(
+            SortedDictionary<CardValue, CardInfo> cardInfos,
+            SortedDictionary<CardValue, List<byte>> cardDatas) {
             foreach (KeyValuePair<CardValue, CardInfo> item in cardInfos) {
-                cards.Add(item.Key, item.Value.datas);
+                cardDatas.Add(item.Key, item.Value.datas);
             }
-            return GetSequenceInfo(cards, type, startValue, out sequenceStart, out sequenceEnd);
         }
         public static CardValue GetCardValue(byte data) {
             return (CardValue)(data & 0xf);
@@ -177,15 +182,40 @@ namespace AnalyseCards {
                 cards[key].Add(datas[i]);
             }
         }
-        public static void PrepareDatas(byte[] datas, out SortedDictionary<CardValue, CardInfo> infos) {
+        public static void PrepareDatas(byte[] byteDatas, out SortedDictionary<CardValue, CardInfo> infos) {
             SortedDictionary<CardValue, List<byte>> cards;
-            PrepareDatas(datas, out cards);
+            PrepareDatas(byteDatas, out cards);
             infos = new SortedDictionary<CardValue, CardInfo>();
             foreach (KeyValuePair<CardValue, List<byte>> item in cards) {
                 CardInfo info = new CardInfo();
                 info.datas = item.Value;
                 infos.Add(item.Key, info);
             }
+        }
+        public static TypeOnlyInfo GetTypeInfo(SortedDictionary<CardValue, List<byte>> datas) {
+            TypeOnlyInfo typeOnlyInfo = new TypeOnlyInfo();
+            foreach (KeyValuePair<CardValue, List<byte>> item in datas) {
+                switch (item.Value.Count) {
+                    case 1:
+                        typeOnlyInfo.singleKeys.Add(item.Key);
+                        break;
+                    case 2:
+                        typeOnlyInfo.pairKeys.Add(item.Key);
+                        break;
+                    case 3:
+                        typeOnlyInfo.threeKeys.Add(item.Key);
+                        break;
+                    case 4:
+                        typeOnlyInfo.bombKeys.Add(item.Key);
+                        break;
+                }
+            }
+            return typeOnlyInfo;
+        }
+        public static TypeOnlyInfo GetTypeInfo(SortedDictionary<CardValue, CardInfo> infos) {
+            SortedDictionary<CardValue, List<byte>> datas = new SortedDictionary<CardValue, List<byte>>();
+            CardInfoToListByte(infos, datas);
+            return GetTypeInfo(datas);
         }
         public static byte[] GenerateData() {
             byte[] cards = {

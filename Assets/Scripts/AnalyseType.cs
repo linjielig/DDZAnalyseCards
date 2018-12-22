@@ -24,26 +24,6 @@ namespace AnalyseCards {
         TypeOnlyInfo typeonlyInfo = new TypeOnlyInfo();
         TypeInfo typeInfo = new TypeInfo();
 
-        TypeOnlyInfo GetTypeCount() {
-            foreach (KeyValuePair<CardValue, List<byte>> item in cards) {
-                switch (item.Value.Count) {
-                    case 1:
-                        typeonlyInfo.singleKeys.Add(item.Key);
-                        break;
-                    case 2:
-                        typeonlyInfo.pairKeys.Add(item.Key);
-                        break;
-                    case 3:
-                        typeonlyInfo.threeKeys.Add(item.Key);
-                        break;
-                    case 4:
-                        typeonlyInfo.bombKeys.Add(item.Key);
-                        break;
-                }
-            }
-            return typeonlyInfo;
-        }
-
         void GetSingleOrPairInfo() {
             if (cards.Count == 1) {
                 if (typeonlyInfo.singleKeys.Count == 1) {

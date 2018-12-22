@@ -11,13 +11,6 @@ namespace AnalyseCards {
             SetInfos();
         }
 
-        void GetSingleDatas() {
-            foreach (KeyValuePair<CardValue, CardInfo> item in infos) {
-                if (IsOnlyType(item.Value, CardType.single) && item.Key > typeInfo.mainValue[0]) {
-                    tipDatas.Add(new List<byte>(item.Value.datas[0]));
-                }
-            }
-        }
         bool IsOnlyType(CardInfo info, CardType type) {
             if ((info.type | type) == type) {
                 return true;
@@ -30,8 +23,9 @@ namespace AnalyseCards {
             }
             return false;
         }
-        SortedDictionary<CardValue, CardInfo> infos = null;
         List<List<byte>> tipDatas = new List<List<byte>>();
+        TypeOnlyInfo typeOnlyInfo = new TypeOnlyInfo();
+        SortedDictionary<CardValue, CardInfo> infos = null;
         TypeInfo typeInfo = null;
         void SetInfos() {
             SetDoubleThreeBombInfos();
