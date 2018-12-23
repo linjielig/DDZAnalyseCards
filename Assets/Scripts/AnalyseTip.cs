@@ -5,38 +5,119 @@ using UnityEngine;
 
 namespace AnalyseCards {
     class AnalyseTip {
-        public byte[] GetTipDatas(byte[] datas, TypeInfo typeInfo) {
-            typeInfo = info;
-            Utility.PrepareDatas(datas, out infos);
+        public byte[] GetTipDatas(byte[] byteDatas, TypeInfo typeInfo) {
+            this.typeInfo = typeInfo;
+            Utility.PrepareDatas(byteDatas, out infos);
+            typeOnlyInfo = Utility.GetTypeOnlyInfo(infos);
             SetInfos();
         }
 
-        bool IsOnlyType(CardInfo info, CardType type) {
-            if ((info.type | type) == type) {
-                return true;
-            }
-            return false;
-        }
-        bool IsType(CardInfo info, CardType type) {
-            if ((info.type & type) == type) {
-                return true;
-            }
-            return false;
-        }
-        List<List<byte>> tipDatas = new List<List<byte>>();
-        TypeOnlyInfo typeOnlyInfo = new TypeOnlyInfo();
-        SortedDictionary<CardValue, CardInfo> infos = null;
-        TypeInfo typeInfo = null;
         void SetInfos() {
             SetDoubleThreeBombInfos();
             SetSequenceInfos(CardType.sequence);
             SetSequenceInfos(CardType.sequencePair);
             SetSequenceInfos(CardType.sequenceThree);
         }
+
+        void GetSingleTipDatas() {
+            if (typeOnlyInfo.singleKeys.Count > 0) {
+                foreach (CardValue cardValue in typeOnlyInfo.singleKeys) {
+                    if (cardValue > typeInfo.mainValue[0]) {
+                        tipDatas.Add(infos[cardValue].byteDatas);
+                    }
+                }
+            }
+            //} else if (typeOnlyInfo.pairKeys.Count > 0) {
+            //    foreach (CardValue cardValue in typeOnlyInfo.pairKeys) {
+            //        if (cardValue > typeInfo.mainValue[0]) {
+            //            tipDatas.Add(new List<byte> { infos[cardValue].byteDatas[0] });
+            //        }
+            //    }
+            //}
+            //if (typeOnlyInfo.bombKeys.Count > 0) {
+            //    foreach (CardValue cardValue in typeOnlyInfo.bombKeys) {
+            //            tipDatas.Add(infos[cardValue].byteDatas);
+            //    }
+            //}
+            //if (tipDatas.Count < 1) {
+            //    if (typeOnlyInfo.threeKeys.Count > 0) {
+            //        foreach (CardValue cardValue in typeOnlyInfo.threeKeys) {
+            //            if (cardValue > typeInfo.mainValue[0]) {
+            //                tipDatas.Add(new List<byte> { infos[cardValue].byteDatas[0] });
+            //            }
+            //        }
+            //    }
+            //}
+        }
+        void GetPairTipDatas() {
+            if (typeOnlyInfo.pairKeys.Count > 0) {
+                foreach (CardValue cardValue in typeOnlyInfo.pairKeys) {
+                    if (cardValue > typeInfo.mainValue[0]) {
+                        tipDatas.Add(infos[cardValue].byteDatas);
+                    }
+                }
+            }
+
+        }
+        void GetThreeTipDatas() {
+            if (typeOnlyInfo.threeKeys.Count > 0) {
+                foreach (CardValue cardValue in typeOnlyInfo.threeKeys) {
+                    if (cardValue > typeInfo.mainValue[0]) {
+                        tipDatas.Add(infos[cardValue].byteDatas);
+                    }
+                }
+            }
+        }
+        void GetBombTipDatas() {
+            if (typeOnlyInfo.bombKeys.Count > 0) {
+                foreach (CardValue cardValue in typeOnlyInfo.bombKeys) {
+                    if (cardValue > typeInfo.mainValue[0]) {
+                        tipDatas.Add(infos[cardValue].byteDatas);
+                    }
+                }
+            }
+        }
+        void GetRocketTipDatas() {
+            if (infos.ContainsKey(CardValue.blackJoker) && infos.ContainsKey(CardValue.redJoker)) {
+                tipDatas.Add(new List<byte> { infos[CardValue.blackJoker].byteDatas[0], infos[CardValue.redJoker].byteDatas[0] });
+            }
+        }
+        void GetSequenceDatas(CardType type) {
+            foreach (KeyValuePair<CardValue, TypeInfo> item in infos) {
+                if (IsType(item.Value, type)) {
+                    switch (type) {
+                        case CardType.sequence:
+                            if (item.Value.SequenceStart > typeInfo.mainValue[0] && item.Value.SequenceEnd > typeInfo.mainValue[1]) {
+                                for (CardValue start = item.Value.SequenceStart; start < item.Value.SequenceEnd; start++) {
+
+                                }
+                            }
+                            CardValue start = item.Value.SequenceStart;
+                            while (item.Value.SequenceEnd - start >= typeInfo.SequenceCount )
+                            break;
+                        case CardType.sequencePair:
+                            break;
+                        case CardType.sequenceThree:
+                            break;
+                    }
+                }
+            }
+        }
+        bool IsType(TypeInfo info, CardType type) {
+            if ((info.type & type) == type) {
+                return true;
+            }
+            return false;
+        }
+        List<List<byte>> tipDatas = new List<List<byte>>();
+        TypeOnlyInfo typeOnlyInfo;
+        SortedDictionary<CardValue, TypeInfo> infos;
+        TypeInfo typeInfo;
+
         // 对牌，三张，炸弹牌型分析
         void SetDoubleThreeBombInfos() {
-            foreach (KeyValuePair<CardValue, CardInfo> item in infos) {
-                switch (item.Value.datas.Count) {
+            foreach (KeyValuePair<CardValue, TypeInfo> item in infos) {
+                switch (item.Value.byteDatas.Count) {
                     case ConstData.pairRequireCount:
                         item.Value.type |= CardType.pair;
                         break;
@@ -89,7 +170,7 @@ namespace AnalyseCards {
         }
         public override string ToString() {
             string str = string.Empty;
-            foreach (KeyValuePair<CardValue, CardInfo> item in infos) {
+            foreach (KeyValuePair<CardValue, TypeInfo> item in infos) {
                 str += "\r\n card value:\t" + item.Key + "\r\n";
                 str += item.Value.ToString();
             }

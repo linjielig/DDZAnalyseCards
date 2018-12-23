@@ -40,24 +40,6 @@ namespace AnalyseCards {
         bomb = 11 << 13,
         rocket = 11 << 14
     }
-
-    class TypeInfo {
-        public CardType type = CardType.none;
-        // single, pair, three, bomb, rocket 使用mainValue[0]记录牌型大小。
-        // sequence, sequencePair, sequenceThree 使用mainValue[0]记录开始，
-        // mainValue[1]记录结束。
-        public CardValue[] mainValue = new CardValue[2];
-        // threeSingle, threePair, bombSingle, bombPair, sequenceThreeSingle,
-        // sequenceThreePair 使用mainValue记录牌型大小或开始结束，并用prefix记录带的
-        // 牌的大小。
-        public CardValue[] prefixValue = new CardValue[4];
-    }
-    class TypeOnlyInfo {
-        public List<CardValue> singleKeys = new List<CardValue>();
-        public List<CardValue> pairKeys = new List<CardValue>();
-        public List<CardValue> threeKeys = new List<CardValue>();
-        public List<CardValue> bombKeys = new List<CardValue>();
-    }
     static class ConstData {
         public const CardValue minCardValue = CardValue.three;
         public const CardValue maxCardValue = CardValue.redJoker;
@@ -70,35 +52,23 @@ namespace AnalyseCards {
         public const byte sequencePairRequireLength = 3;
         public const byte sequenceThreeRequireLength = 2;
     }
-
-    class CardInfo {
+    class TypeInfo {
         public CardType type { get; set; }
-        public List<byte> datas = new List<byte>();
-        public CardValue SequenceStart { get; set; }
-        public CardValue SequenceEnd { get; set; }
-        public CardValue PairSequenceStart { get; set; }
-        public CardValue PairSequenceEnd { get; set; }
-        public CardValue ThreeSequenceStart { get; set; }
-        public CardValue ThreeSequenceEnd { get; set; }
-
-        public override string ToString() {
-            string str = "\r\ncard type:\t" + type.ToString() + "\r\n" +
-                 "\r\nsequence range:\t" + SequenceStart + ",\t" + SequenceEnd + "\r\n" +
-                "pair sequence range:\t" + PairSequenceStart + ",\t" + PairSequenceEnd + "\r\n" +
-                "three sequence range:\t" + ThreeSequenceStart + ",\t" + ThreeSequenceEnd + "\r\n" +
-                "card datas:\r\n";
-            for (int i = 0; i < datas.Count; i++) {
-                str += datas[i] + "\t";
-            }
-            str += "\r\n ---------------------------------------------------------->>>>>>>>>>>>>>>>>>>>>>>>>> \r\n";
-
-            return str;
+        public Dictionary<CardType, CardValue[]> mainValue = new Dictionary<CardType, CardValue[]>();
+        public List<CardValue> postfix = new List<CardValue>();
+        public List<byte> byteDatas = new List<byte>();
+        public byte GetCount(CardType type) {
+            return (byte)(Math.Abs(mainValue[type][1] - mainValue[type][0]) + 1);
         }
-        public CardInfo() {
+
+        public TypeInfo() {
             type = CardType.single;
+            mainValue.Add(CardType.sequence, new CardValue[2]);
+            mainValue.Add(CardType.sequencePair, new CardValue[2]);
+            mainValue.Add(CardType.sequenceThree, new CardValue[2]);
+
         }
     }
-
     static class Utility {
         static byte GetSequenceRequireCount(CardType type) {
             switch (type) {
@@ -123,7 +93,7 @@ namespace AnalyseCards {
             return 5;
         }
         public static bool GetSequenceInfo(
-            SortedDictionary<CardValue, List<byte>> cards,
+            SortedDictionary<CardValue, List<byte>> datas,
             CardType type,
             CardValue startValue,
             out CardValue sequenceStart,
@@ -135,7 +105,7 @@ namespace AnalyseCards {
             byte requireCount = GetSequenceRequireCount(type);
 
             for (CardValue i = startValue; i <= ConstData.maxSequenceValue; i++) {
-                if (cards.ContainsKey(i) && cards[i].Count >= requireCount) {
+                if (datas.ContainsKey(i) && datas[i].Count >= requireCount) {
                     count++;
                     if (count == 1) {
                         sequenceStart = i;
@@ -153,69 +123,76 @@ namespace AnalyseCards {
             return false;
         }
         public static bool GetSequenceInfo(
-            SortedDictionary<CardValue, CardInfo> cardInfos,
+            SortedDictionary<CardValue, TypeInfo> infos,
             CardType type,
             CardValue startValue,
             out CardValue sequenceStart,
             out CardValue sequenceEnd) {
-            SortedDictionary<CardValue, List<byte>> cardDatas = new SortedDictionary<CardValue, List<byte>>();
-            CardInfoToListByte(cardInfos, cardDatas);
-            return GetSequenceInfo(cardDatas, type, startValue, out sequenceStart, out sequenceEnd);
+            SortedDictionary<CardValue, List<byte>> datas = new SortedDictionary<CardValue, List<byte>>();
+            CardInfoToListByte(infos, datas);
+            return GetSequenceInfo(datas, type, startValue, out sequenceStart, out sequenceEnd);
         }
         static void CardInfoToListByte(
-            SortedDictionary<CardValue, CardInfo> cardInfos,
-            SortedDictionary<CardValue, List<byte>> cardDatas) {
-            foreach (KeyValuePair<CardValue, CardInfo> item in cardInfos) {
-                cardDatas.Add(item.Key, item.Value.datas);
+            SortedDictionary<CardValue, TypeInfo> infos,
+            SortedDictionary<CardValue, List<byte>> datas) {
+            foreach (KeyValuePair<CardValue, TypeInfo> item in infos) {
+                datas.Add(item.Key, item.Value.byteDatas);
             }
         }
-        public static CardValue GetCardValue(byte data) {
-            return (CardValue)(data & 0xf);
+        public static CardValue GetCardValue(byte byteData) {
+            return (CardValue)(byteData & 0xf);
         }
-        public static void PrepareDatas(byte[] datas, out SortedDictionary<CardValue, List<byte>> cards) {
-            cards = new SortedDictionary<CardValue, List<byte>>();
-            for (int i = 0; i < datas.Length; i++) {
-                CardValue key = GetCardValue(datas[i]);
-                if (!cards.ContainsKey(key)) {
-                    cards.Add(key, new List<byte>());
+        public static void PrepareDatas(byte[] byteDatas, out SortedDictionary<CardValue, List<byte>> datas) {
+            datas = new SortedDictionary<CardValue, List<byte>>();
+            for (int i = 0; i < byteDatas.Length; i++) {
+                CardValue key = GetCardValue(byteDatas[i]);
+                if (!datas.ContainsKey(key)) {
+                    datas.Add(key, new List<byte>());
                 }
-                cards[key].Add(datas[i]);
+                datas[key].Add(byteDatas[i]);
             }
         }
-        public static void PrepareDatas(byte[] byteDatas, out SortedDictionary<CardValue, CardInfo> infos) {
+        public static void PrepareDatas(byte[] byteDatas, out SortedDictionary<CardValue, TypeInfo> infos) {
             SortedDictionary<CardValue, List<byte>> cards;
             PrepareDatas(byteDatas, out cards);
-            infos = new SortedDictionary<CardValue, CardInfo>();
+            infos = new SortedDictionary<CardValue, TypeInfo>();
             foreach (KeyValuePair<CardValue, List<byte>> item in cards) {
-                CardInfo info = new CardInfo();
-                info.datas = item.Value;
+                TypeInfo info = new TypeInfo();
+                info.byteDatas = item.Value;
                 infos.Add(item.Key, info);
             }
         }
-        public static TypeOnlyInfo GetTypeInfo(SortedDictionary<CardValue, List<byte>> datas) {
-            TypeOnlyInfo typeOnlyInfo = new TypeOnlyInfo();
+        public static Dictionary<CardType, List<CardValue>> GetOnlyTypeInfo(SortedDictionary<CardValue, List<byte>> datas) {
+            Dictionary<CardType, List<CardValue>> onlyTypeInfo = new Dictionary<CardType, List<CardValue>> {
+            { CardType.single, new List<CardValue>() },
+            { CardType.pair, new List<CardValue>() },
+            { CardType.three, new List<CardValue>() },
+            { CardType.bomb, new List<CardValue>() }
+            };
+            CardType type = CardType.none;
             foreach (KeyValuePair<CardValue, List<byte>> item in datas) {
                 switch (item.Value.Count) {
-                    case 1:
-                        typeOnlyInfo.singleKeys.Add(item.Key);
+                    case ConstData.singleRequireCount:
+                        type = CardType.single;
                         break;
-                    case 2:
-                        typeOnlyInfo.pairKeys.Add(item.Key);
+                    case ConstData.pairRequireCount:
+                        type = CardType.pair;
                         break;
-                    case 3:
-                        typeOnlyInfo.threeKeys.Add(item.Key);
+                    case ConstData.threeRequireCount:
+                        type = CardType.three;
                         break;
-                    case 4:
-                        typeOnlyInfo.bombKeys.Add(item.Key);
+                    case ConstData.bombRequireCount:
+                        type = CardType.bomb;
                         break;
                 }
+                onlyTypeInfo[type].Add(item.Key);
             }
-            return typeOnlyInfo;
+            return onlyTypeInfo;
         }
-        public static TypeOnlyInfo GetTypeInfo(SortedDictionary<CardValue, CardInfo> infos) {
+        public static Dictionary<CardType, List<CardValue>> GetOnlyTypeInfo(SortedDictionary<CardValue, TypeInfo> infos) {
             SortedDictionary<CardValue, List<byte>> datas = new SortedDictionary<CardValue, List<byte>>();
             CardInfoToListByte(infos, datas);
-            return GetTypeInfo(datas);
+            return GetOnlyTypeInfo(datas);
         }
         public static byte[] GenerateData() {
             byte[] cards = {
