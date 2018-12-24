@@ -51,26 +51,76 @@ namespace AnalyseCards {
         public const byte sequenceRequireLength = 5;
         public const byte sequencePairRequireLength = 3;
         public const byte sequenceThreeRequireLength = 2;
+        public const byte suitCount = 13;
     }
-    class TypeInfo {
+    class SequenceData : IComparable<SequenceData> {
+        public CardValue Start { get; set; }
+        public CardValue End { get; set; }
+        public byte Count() {
+            byte count = (byte)Math.Abs(End - Start);
+            if (count > 0) {
+                return (byte)(count + 1);
+            } else {
+                return count;
+            }
+        }
+        public int CompareTo(SequenceData d) {
+            if (End > d.End) {
+                if (Count() >= d.Count()) {
+                    return 1;
+                }
+            } else if (End == d.End && Start == d.Start) {
+                return 0;
+            }
+            return -1;
+        }
+        public override string ToString() {
+            string str = "\r\nStart:\t" + Start + ",\tEnd:\t" + End + ",\tCount:\t" + Count() + "\r\n";
+            return str;
+        }
+    }
+    class TypeInfo : MonoBehaviour {
         public CardType type { get; set; }
-        public Dictionary<CardType, CardValue[]> mainValue = new Dictionary<CardType, CardValue[]>();
+        public CardValue mainValue { get; set; }
+        public Dictionary<CardType, SequenceData> sequenceData = new Dictionary<CardType, SequenceData>();
         public List<CardValue> postfix = new List<CardValue>();
         public List<byte> byteDatas = new List<byte>();
-        public byte GetCount(CardType type) {
-            return (byte)(Math.Abs(mainValue[type][1] - mainValue[type][0]) + 1);
+        public byte Count(CardType type) {
+            return sequenceData[type].Count();
         }
-
         public TypeInfo() {
-            type = CardType.single;
-            mainValue.Add(CardType.sequence, new CardValue[2]);
-            mainValue.Add(CardType.sequencePair, new CardValue[2]);
-            mainValue.Add(CardType.sequenceThree, new CardValue[2]);
-
+            type = CardType.none;
+            sequenceData.Add(CardType.sequence, new SequenceData());
+            sequenceData.Add(CardType.sequencePair, new SequenceData());
+            sequenceData.Add(CardType.sequenceThree, new SequenceData());
+        }
+        public int CompareTo(TypeInfo info, CardType type) {
+            CardType sequenceType = CardType.sequence | CardType.sequencePair | CardType.sequenceThree | CardType.sequenceThreeSingle | CardType.sequenceThreePair;
+            if (type == info.type && (type & sequenceType) != 0) {
+                return sequenceData[type].CompareTo(info.sequenceData[type]);
+            }
+            return 0;
+        }
+        public override string ToString() {
+            string str = "\r\nmainValue:\t" + mainValue;
+            str += "\r\nType:\t" + type + "\r\n";
+            str += "\r\nbyteDatas:\r\n";
+            for (byte i = 0; i < byteDatas.Count; i++) {
+                str += byteDatas[i] + "\t";
+            }
+            str += "\r\npostfix:\r\n";
+            for (byte i = 0; i < postfix.Count; i++) {
+                str += postfix[i] + "\t";
+            }
+            str += "\r\n sequenceData:\r\n";
+            foreach (KeyValuePair<CardType, SequenceData> item in sequenceData) {
+                str += item.Key + item.Value.ToString();
+            }
+            return str;
         }
     }
     static class Utility {
-        static byte GetSequenceRequireCount(CardType type) {
+        public static byte GetSequenceRequireCount(CardType type) {
             switch (type) {
                 case CardType.sequence:
                     return ConstData.singleRequireCount;
@@ -81,7 +131,20 @@ namespace AnalyseCards {
             }
             return 1;
         }
-        static byte GetSequenceRequireLength(CardType type) {
+        public static byte GetTypeCount(CardType type) {
+            switch (type) {
+                case CardType.single:
+                    return ConstData.singleRequireCount;
+                case CardType.pair:
+                    return ConstData.pairRequireCount;
+                case CardType.three:
+                    return ConstData.threeRequireCount;
+                case CardType.bomb:
+                    return ConstData.bombRequireCount;
+            }
+            return 1;
+        }
+        public static byte GetSequenceRequireLength(CardType type) {
             switch (type) {
                 case CardType.sequence:
                     return ConstData.sequenceRequireLength;
@@ -99,11 +162,10 @@ namespace AnalyseCards {
             out CardValue sequenceStart,
             out CardValue sequenceEnd) {
             byte count = 0;
-            sequenceStart = ConstData.minCardValue;
+            sequenceStart = startValue;
             sequenceEnd = sequenceStart;
             byte requireLength = GetSequenceRequireLength(type);
             byte requireCount = GetSequenceRequireCount(type);
-
             for (CardValue i = startValue; i <= ConstData.maxSequenceValue; i++) {
                 if (datas.ContainsKey(i) && datas[i].Count >= requireCount) {
                     count++;
@@ -115,6 +177,7 @@ namespace AnalyseCards {
                     if (count >= requireLength) {
                         return true;
                     }
+                    return false;
                 }
             }
             if (count >= requireLength) {
@@ -140,7 +203,14 @@ namespace AnalyseCards {
             }
         }
         public static CardValue GetCardValue(byte byteData) {
-            return (CardValue)(byteData & 0xf);
+            byte value = (byte)(byteData & 0xf);
+            if (value == 14 || value == 15) {
+                value += 2;
+            }
+            if (value == 1 || value == 2) {
+                value += 13;
+            }
+            return (CardValue)value;
         }
         public static void PrepareDatas(byte[] byteDatas, out SortedDictionary<CardValue, List<byte>> datas) {
             datas = new SortedDictionary<CardValue, List<byte>>();
@@ -159,6 +229,8 @@ namespace AnalyseCards {
             foreach (KeyValuePair<CardValue, List<byte>> item in cards) {
                 TypeInfo info = new TypeInfo();
                 info.byteDatas = item.Value;
+                info.type = CardType.single;
+                info.mainValue = item.Key;
                 infos.Add(item.Key, info);
             }
         }
@@ -194,20 +266,34 @@ namespace AnalyseCards {
             CardInfoToListByte(infos, datas);
             return GetOnlyTypeInfo(datas);
         }
-        public static byte[] GenerateData() {
-            byte[] cards = {
-                0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xa, 0xb, 0xc, 0xd,
-                0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d,
-                0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d,
-                0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x3a, 0x3b, 0x3c, 0x3d,
-                0x4e, 0x4f
+        public static bool IsType(TypeInfo info, CardType type) {
+            if ((info.type & type) == type) {
+                return true;
+            }
+            return false;
+        }
+        static byte[] cardDatas = {
+                0x1,    0x2,    0x3,    0x4,    0x5,    0x6,    0x7,    0x8,    0x9,    0xa,    0xb,    0xc,    0xd,
+                0x11,   0x12,   0x13,   0x14,   0x15,   0x16,   0x17,   0x18,   0x19,   0x1a,   0x1b,   0x1c,   0x1d,
+                0x21,   0x22,   0x23,   0x24,   0x25,   0x26,   0x27,   0x28,   0x29,   0x2a,   0x2b,   0x2c,   0x2d,
+                0x31,   0x32,   0x33,   0x34,   0x35,   0x36,   0x37,   0x38,   0x39,   0x3a,   0x3b,   0x3c,   0x3d,
+                0x4e,   0x4f
             };
+        public static byte[] GenerateDatas() {
+
             System.Random rnd = new System.Random();
             byte[] datas = new byte[20];
             for (int i = 0; i < 20; i++) {
-                datas[i] = cards[rnd.Next(0, 54)];
+                datas[i] = cardDatas[rnd.Next(0, 54)];
             }
             return datas;
+        }
+        public static byte[] GetSinglePairThreeBombDatas(CardType type) {
+            List<byte> byteDatas = new List<byte>();
+            for (byte i = 0; i < ConstData.suitCount * GetTypeCount(type); i++) {
+                byteDatas.Add(cardDatas[i]);
+            }
+            return byteDatas.ToArray();
         }
     }
 }

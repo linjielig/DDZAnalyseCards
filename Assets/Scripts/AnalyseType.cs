@@ -11,103 +11,99 @@ namespace AnalyseCards {
             }
             Utility.PrepareDatas(byteDatas, out datas);
             onlyTypeInfo = Utility.GetOnlyTypeInfo(datas);
-            GetSingleOrPairInfo();
-            GetThreeInfo();
-            GetBombInfo();
-            GetRocketInfo();
-            GetSequenceInfo(CardType.sequence);
-            GetSequenceInfo(CardType.sequencePair);
-            GetSequenceInfo(CardType.sequenceThree);
+            GetSinglePairThreeBomb();
+            GetThreeSinglePair();
+            GetBombSinglePair();
+            GetRocket();
+            GetSequence(CardType.sequence);
+            GetSequence(CardType.sequencePair);
+            GetSequence(CardType.sequenceThree);
             return typeInfo;
         }
 
         SortedDictionary<CardValue, List<byte>> datas;
         Dictionary<CardType, List<CardValue>> onlyTypeInfo;
         TypeInfo typeInfo = new TypeInfo();
-
-        void GetSingleOrPairInfo() {
+        public override string ToString() {
+            string str = "\r\nonlyTypeInfo:\r\n";
+            foreach (KeyValuePair<CardType, List<CardValue>> item in onlyTypeInfo) {
+                str += item.Key.ToString() + ":\r\n";
+                foreach (CardValue cardValue in item.Value) {
+                    str += cardValue + ",\t";
+                }
+                str += "\r\n";
+            }
+            str += typeInfo.ToString();
+            return str;
+        }
+        void GetSinglePairThreeBomb() {
             if (datas.Count == 1) {
                 CardType type = CardType.none;
-                if (onlyTypeInfo[CardType.single].Count == ConstData.singleRequireCount) {
+                if (onlyTypeInfo[CardType.single].Count == 1) {
                     type = CardType.single;
-                } else if (onlyTypeInfo[CardType.pair].Count == ConstData.pairRequireCount) {
+                } else if (onlyTypeInfo[CardType.pair].Count == 1) {
                     type = CardType.pair;
-                }
-                typeInfo.type = type;
-                typeInfo.mainValue[type][0] = onlyTypeInfo[type][0];
-            }
-        }
-        void GetThreeInfo() {
-            CardType type = CardType.none;
-            if (onlyTypeInfo[CardType.three].Count == 1) {
-                if (datas.Count == 1) {
+                } else if (onlyTypeInfo[CardType.three].Count == 1) {
                     type = CardType.three;
-                } else if (datas.Count == 2) {
-                    if (onlyTypeInfo[CardType.single].Count == 1) {
-                        type = CardType.threeSingle;
-                        typeInfo.postfix.Add(onlyTypeInfo[CardType.single][0]);
-                    } else if (onlyTypeInfo[CardType.pair].Count == 1) {
-                        type = CardType.threePair;
-                        typeInfo.postfix.Add(onlyTypeInfo[CardType.pair][0]);
-                    }
+                } else if (onlyTypeInfo[CardType.bomb].Count == 1) {
+                    type = CardType.bomb;
                 }
                 typeInfo.type = type;
-                typeInfo.mainValue[type][0] = onlyTypeInfo[CardType.three][0];
+                typeInfo.mainValue = onlyTypeInfo[type][0];
             }
         }
-        void GetBombInfo() {
-            if (typeOnlyInfo.bombKeys.Count == 1) {
-                typeInfo.mainValue[0] = typeOnlyInfo.bombKeys[0];
-
-                if (datas.Count == 1) {
-                    typeInfo.type = CardType.bomb;
+        void GetThreeSinglePair() {
+            CardType type = CardType.none;
+            if (datas.Count == 2 && onlyTypeInfo[CardType.three].Count == 1) {
+                if (onlyTypeInfo[CardType.single].Count == 1) {
+                    type = CardType.threeSingle;
+                    typeInfo.postfix.Add(onlyTypeInfo[CardType.single][0]);
+                } else if (onlyTypeInfo[CardType.pair].Count == 1) {
+                    type = CardType.threePair;
+                    typeInfo.postfix.Add(onlyTypeInfo[CardType.pair][0]);
                 }
-                if (datas.Count == 3) {
-                    if (typeOnlyInfo.singleKeys.Count == 2) {
-                        typeInfo.type = CardType.bombSingle;
-                        typeInfo.prefixValue[0] = typeOnlyInfo.singleKeys[0];
-                        typeInfo.prefixValue[1] = typeOnlyInfo.singleKeys[1];
-                    }
-                    if (typeOnlyInfo.pairKeys.Count == 2) {
-                        typeInfo.type = CardType.bombPair;
-                        typeInfo.prefixValue[0] = typeOnlyInfo.pairKeys[0];
-                        typeInfo.prefixValue[1] = typeOnlyInfo.pairKeys[1];
-                    }
+                typeInfo.type = type;
+                typeInfo.mainValue = onlyTypeInfo[CardType.three][0];
+            }
+        }
+        void GetBombSinglePair() {
+            if (datas.Count == 3 && onlyTypeInfo[CardType.bomb].Count == 1) {
+                typeInfo.mainValue = onlyTypeInfo[CardType.bomb][0];
+                if (onlyTypeInfo[CardType.single].Count == 2) {
+                    typeInfo.type = CardType.bombSingle;
+                    typeInfo.postfix.AddRange(onlyTypeInfo[CardType.single]);
+                }
+                if (onlyTypeInfo[CardType.pair].Count == 2) {
+                    typeInfo.type = CardType.bombPair;
+                    typeInfo.postfix.AddRange(onlyTypeInfo[CardType.pair]);
                 }
             }
         }
-
-        void GetRocketInfo() {
+        void GetRocket() {
             if (datas.Count == 2 &&
             datas.ContainsKey(CardValue.blackJoker) &&
                 datas.ContainsKey(CardValue.redJoker)) {
                 typeInfo.type = CardType.rocket;
             }
         }
-
-        void GetSequenceInfo(CardType type) {
+        void GetSequence(CardType type) {
             CardValue sequenceStart, sequenceEnd;
-            bool isHaveSequence = false;
+            bool isHaveSequence = 
             Utility.GetSequenceInfo(datas, type, ConstData.minCardValue, out sequenceStart, out sequenceEnd);
 
             if (isHaveSequence) {
-                typeInfo.mainValue[0] = sequenceStart;
-                typeInfo.mainValue[1] = sequenceEnd;
-                byte count = (byte)(Math.Abs(sequenceEnd - sequenceStart) + 1);
-                if (type == CardType.sequenceThree && count != datas.Count) {
-                    if (typeOnlyInfo.singleKeys.Count == count && datas.Count == count * 2) {
-                        for (byte i = 0; i < typeOnlyInfo.singleKeys.Count; i++) {
-                            typeInfo.prefixValue[i] = typeOnlyInfo.singleKeys[i];
-                        }
+                typeInfo.sequenceData[type].Start = sequenceStart;
+                typeInfo.sequenceData[type].End = sequenceEnd;
+                byte count = typeInfo.Count(type);
+                if (type == CardType.sequenceThree && datas.Count == count * 2) {
+                    if (onlyTypeInfo[CardType.single].Count == count) {
                         typeInfo.type = CardType.sequenceThreeSingle;
-                    }
-                    if (typeOnlyInfo.pairKeys.Count == count && datas.Count == count * 2) {
-                        for (byte i = 0; i < typeOnlyInfo.pairKeys.Count; i++) {
-                            typeInfo.prefixValue[i] = typeOnlyInfo.pairKeys[i];
-                        }
+                        typeInfo.postfix.AddRange(onlyTypeInfo[CardType.single]);
+                    } else if (onlyTypeInfo[CardType.pair].Count == count) {
                         typeInfo.type = CardType.sequenceThreePair;
+                        typeInfo.postfix.AddRange(onlyTypeInfo[CardType.pair]);
                     }
-                } else {
+                } else if (datas.Count == count) {
                     typeInfo.type = type;
                 }
             }
