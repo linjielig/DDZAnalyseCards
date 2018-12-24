@@ -12,7 +12,7 @@ public class TestTipLogic : MonoBehaviour {
 	void Update () {
         if (Input.GetKeyUp(KeyCode.T)) {
             byte[] byteDatas = Utility.GenerateDatas();
-            Analyse.Instance.GetTipDatas(byteDatas, new byte[] { 0x8, 0x8, 0x8, 0x9 }, false);
+            Analyse.Instance.GetTipDatas(byteDatas, new byte[] { 0x8, 0x8, 0x8, 0x8, 0x9, 0x10 }, false);
         }
     }
     public void TestSingle() {
