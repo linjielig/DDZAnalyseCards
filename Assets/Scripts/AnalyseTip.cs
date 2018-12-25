@@ -59,12 +59,12 @@ namespace AnalyseCards {
                 case CardType.bombSingle:
                     GetBombForOther();
                     GetBombSingle();
-                    GetRocket();
+                    GetRocketForOther();
                     break;
                 case CardType.bombPair:
                     GetBombForOther();
                     GetBombPair();
-                    GetRocket();
+                    GetRocketForOther();
                     break;
                 case CardType.sequence:
                     GetSequence(CardType.sequence);
@@ -74,16 +74,26 @@ namespace AnalyseCards {
                 case CardType.sequencePair:
                     GetSequence(CardType.sequencePair);
                     GetBombForOther();
-                    GetRocket();
+                    GetRocketForOther();
                     break;
                 case CardType.sequenceThree:
                     GetSequence(CardType.sequenceThree);
                     GetBombForOther();
-                    GetRocket();
+                    GetRocketForOther();
                     break;
                 case CardType.sequenceThreeSingle:
+                    GetSequence(CardType.sequenceThree);
+                    GetSequenceThreeSingle();
+                    GetBombForOther();
+                    GetRocketForOther();
+                    SplitToSequenceThreeSingle();
                     break;
                 case CardType.sequenceThreePair:
+                    GetSequence(CardType.sequenceThree);
+                    GetSequenceThreePair();
+                    GetBombForOther();
+                    GetRocketForOther();
+                    SplitToSequenceThreePair();
                     break;
                 case CardType.bomb:
                     GetBomb();
@@ -328,7 +338,11 @@ namespace AnalyseCards {
                 tipDatas.Add(new List<byte> { infos[CardValue.blackJoker].byteDatas[0], infos[CardValue.redJoker].byteDatas[0] });
             }
         }
+        List<List<byte>> sequenceThreeList;
         void GetSequence(CardType type) {
+            if (type == CardType.sequenceThree) {
+                sequenceThreeList = new List<List<byte>>();
+            }
             for (CardValue i = ConstData.minCardValue; i < ConstData.maxSequenceValue; i++) {
                 if (infos.ContainsKey(i)) {
                     if (Utility.IsContainType(infos[i], type) && infos[i].CompareTo(typeInfo, type) > 0) {
@@ -338,14 +352,20 @@ namespace AnalyseCards {
                             start = typeInfo.sequenceData[type].Start + 1;
                         }
                         do {
-                            List<byte> byteDatas = new List<byte>();
+                            List<byte> listBytes = new List<byte>();
                             CardValue limit = start + typeInfo.Count(type);
                             for (CardValue key = start; key < limit; key++) {
+                                if (Utility.IsContainType(infos[key], CardType.bomb)) {
+                                    break;
+                                }
                                 for (byte j = 0; j < Utility.GetSequenceRequireCount(type); j++) {
-                                    byteDatas.Add(infos[key].byteDatas[j]);
+                                    listBytes.Add(infos[key].byteDatas[j]);
                                 }
                             }
-                            tipDatas.Add(byteDatas);
+                            if (listBytes.Count == typeInfo.Count(type) * Utility.GetSequenceRequireCount(type)) {
+                                tipDatas.Add(listBytes);
+                                sequenceThreeList.Add(listBytes);
+                            }
                             start += 1;
                         } while ((infos[i].sequenceData[type].End - start) >= typeInfo.Count(type) - 1);
                         i = infos[i].sequenceData[type].End;
@@ -354,7 +374,90 @@ namespace AnalyseCards {
                 }
             }
         }
+        void GetSequenceThreeSingle() {
+            if (onlyTypeInfo[CardType.single].Count >= typeInfo.sequenceData[CardType.sequenceThree].Count()) {
+                foreach (List<byte> listBytes in tipDatas) {
+                    for (byte i = 0; i < typeInfo.sequenceData[CardType.sequenceThree].Count(); i++) {
+                        listBytes.AddRange(infos[onlyTypeInfo[CardType.single][i]].byteDatas);
+                    }
+                }
+            } else {
+                tipDatas.Clear();
+            }
+        }
+        void GetSequenceThreePair() {
+            if (onlyTypeInfo[CardType.pair].Count >= typeInfo.sequenceData[CardType.sequenceThree].Count()) {
+                foreach (List<byte> listBytes in tipDatas) {
+                    for (byte i = 0; i < typeInfo.sequenceData[CardType.sequenceThree].Count(); i++) {
+                        listBytes.AddRange(infos[onlyTypeInfo[CardType.pair][i]].byteDatas);
+                    }
+                }
+            } else {
+                tipDatas.Clear();
+            }
+        }
+        List<CardValue> SequenceThreeBytesToCardValue(List<byte> threeBytes) {
+            List<CardValue> sequenceThreeCardValue = new List<CardValue>();
+            for (int i = 0; i < threeBytes.Count; i+=3) {
+                sequenceThreeCardValue.Add(Utility.GetCardValue(threeBytes[i]));
+            }
+            return sequenceThreeCardValue;
+        }
+        void SplitToSequenceThreeSingle() {
+            if (tipDatas.Count > 0) {
+                return;
+            }
+            List<byte> postfixBytes = new List<byte>();
+            foreach (List<byte> sequenceThreeBytes in sequenceThreeList) {
+                List<CardValue> sequenceThreeCardValue = SequenceThreeBytesToCardValue(sequenceThreeBytes);
+                for (byte i = 0; i < typeInfo.sequenceData[CardType.sequenceThree].Count(); i++) {
+                    if (i < onlyTypeInfo[CardType.single].Count) {
+                        postfixBytes.Add(infos[onlyTypeInfo[CardType.single][i]].byteDatas[0]);
+                    } else if (onlyTypeInfo[CardType.pair].Count > 0 && i - onlyTypeInfo[CardType.single].Count < onlyTypeInfo[CardType.pair].Count) {
+                        postfixBytes.Add(infos[onlyTypeInfo[CardType.pair][i - onlyTypeInfo[CardType.single].Count]].byteDatas[0]);
+                    }
+                }
+                foreach (CardValue value in onlyTypeInfo[CardType.three]) {
+                    if (postfixBytes.Count == sequenceThreeCardValue.Count) {
+                        break;
+                    }
+                    if (!sequenceThreeCardValue.Contains(value)) {
+                        postfixBytes.Add(infos[value].byteDatas[0]);
+                    }
+                }
+                if (postfixBytes.Count == sequenceThreeCardValue.Count) {
+                    sequenceThreeBytes.AddRange(postfixBytes);
+                    tipDatas.Add(sequenceThreeBytes);
+                }
+                postfixBytes.Clear();
+            }
 
+        }
+        void SplitToSequenceThreePair() {
+            if (tipDatas.Count > 0) {
+                return;
+            }
+            List<byte> postfixBytes = new List<byte>();
+            foreach (List<byte> sequenceThreeBytes in sequenceThreeList) {
+                List<CardValue> sequenceThreeCardValue = SequenceThreeBytesToCardValue(sequenceThreeBytes);
+                foreach (CardValue value in onlyTypeInfo[CardType.pair]) {
+                    postfixBytes.AddRange(infos[value].byteDatas);
+                }
+                foreach (CardValue value in onlyTypeInfo[CardType.three]) {
+                    if (postfixBytes.Count == 2 * sequenceThreeCardValue.Count) {
+                        break;
+                    }
+                    if (!sequenceThreeCardValue.Contains(value)) {
+                        postfixBytes.AddRange(new List<byte> { infos[value].byteDatas[0], infos[value].byteDatas[0] });
+                    }
+                }
+                if (postfixBytes.Count == 2 * sequenceThreeCardValue.Count) {
+                    sequenceThreeBytes.AddRange(postfixBytes);
+                    tipDatas.Add(sequenceThreeBytes);
+                }
+                postfixBytes.Clear();
+            }
+        }
         List<List<byte>> tipDatas = new List<List<byte>>();
         Dictionary<CardType, List<CardValue>> onlyTypeInfo;
         SortedDictionary<CardValue, TypeInfo> infos;

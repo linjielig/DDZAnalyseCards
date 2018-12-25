@@ -129,6 +129,8 @@ namespace AnalyseCards {
                 case CardType.sequencePair:
                     return ConstData.pairRequireCount;
                 case CardType.sequenceThree:
+                case CardType.sequenceThreePair:
+                case CardType.sequenceThreeSingle:
                     return ConstData.threeRequireCount;
             }
             return 1;
@@ -153,6 +155,8 @@ namespace AnalyseCards {
                 case CardType.sequencePair:
                     return ConstData.sequencePairRequireLength;
                 case CardType.sequenceThree:
+                case CardType.sequenceThreeSingle:
+                case CardType.sequenceThreePair:
                     return ConstData.sequenceThreeRequireLength;
             }
             return 5;
@@ -270,6 +274,9 @@ namespace AnalyseCards {
         }
         public static bool IsContainType(TypeInfo info, CardType type) {
             if ((info.type & type) == type) {
+                return true;
+            }
+            if (type == CardType.sequenceThree && IsAnyOfType(info, CardType.sequenceThreeSingle | CardType.sequenceThreePair)) {
                 return true;
             }
             return false;

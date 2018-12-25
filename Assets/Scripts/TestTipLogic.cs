@@ -11,8 +11,10 @@ public class TestTipLogic : MonoBehaviour {
 	// Update is called once per frame
 	void Update () {
         if (Input.GetKeyUp(KeyCode.T)) {
-            byte[] byteDatas = Utility.GenerateDatas();
-            Analyse.Instance.GetTipDatas(byteDatas, new byte[] { 0x3, 0x3, 0x3, 0x4, 0x4, 0x4 }, false);
+            //byte[] byteDatas = Utility.GenerateDatas();
+            Analyse.Instance.GetTipDatas(
+            new byte[] { 0x7, 0x7, 0x7, 0x7, 0x8, 0x8, 0x8, 0x8 }, 
+            new byte[] { 0x3, 0x3, 0x3, 0x3 }, false);
         }
     }
     public void TestSingle() {
