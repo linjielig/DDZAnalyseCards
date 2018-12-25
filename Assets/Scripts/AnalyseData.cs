@@ -37,8 +37,8 @@ namespace AnalyseCards {
         sequenceThree = 1 << 10,
         sequenceThreeSingle = 1 << 11,
         sequenceThreePair = 1 << 12,
-        bomb = 11 << 13,
-        rocket = 11 << 14
+        bomb = 1 << 13,
+        rocket = 1 << 14
     }
     static class ConstData {
         public const CardValue minCardValue = CardValue.three;
