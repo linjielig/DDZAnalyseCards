@@ -26,7 +26,7 @@ namespace AnalyseCards {
         public bool IsWithRule(byte[] byteDatas) {
             TypeInfo typeInfo = analyseType.GetTypeInfo(byteDatas);
             analyseTypeInfo = analyseType.ToString();
-            if (Utility.IsType(typeInfo, CardType.none)) {
+            if (Utility.IsContainType(typeInfo, CardType.none)) {
                 return false;
             }
             return true;

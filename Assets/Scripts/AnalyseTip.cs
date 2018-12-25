@@ -59,10 +59,37 @@ namespace AnalyseCards {
                 case CardType.bombSingle:
                     GetBombForOther();
                     GetBombSingle();
+                    GetRocket();
                     break;
                 case CardType.bombPair:
                     GetBombForOther();
                     GetBombPair();
+                    GetRocket();
+                    break;
+                case CardType.sequence:
+                    GetSequence(CardType.sequence);
+                    GetBombForOther();
+                    GetRocket();
+                    break;
+                case CardType.sequencePair:
+                    GetSequence(CardType.sequencePair);
+                    GetBombForOther();
+                    GetRocket();
+                    break;
+                case CardType.sequenceThree:
+                    GetSequence(CardType.sequenceThree);
+                    GetBombForOther();
+                    GetRocket();
+                    break;
+                case CardType.sequenceThreeSingle:
+                    break;
+                case CardType.sequenceThreePair:
+                    break;
+                case CardType.bomb:
+                    GetBomb();
+                    GetRocket();
+                    break;
+                case CardType.rocket:
                     break;
             }
         }
@@ -304,17 +331,25 @@ namespace AnalyseCards {
         void GetSequence(CardType type) {
             for (CardValue i = ConstData.minCardValue; i < ConstData.maxSequenceValue; i++) {
                 if (infos.ContainsKey(i)) {
-                    if (Utility.IsType(infos[i], type) && infos[i].CompareTo(typeInfo, type) > 0) {
-                        CardValue key = typeInfo.sequenceData[type].Start;
+                    if (Utility.IsContainType(infos[i], type) && infos[i].CompareTo(typeInfo, type) > 0) {
+
+                        CardValue start = infos[i].sequenceData[type].Start;
+                        if (start <= typeInfo.sequenceData[type].Start) {
+                            start = typeInfo.sequenceData[type].Start + 1;
+                        }
                         do {
                             List<byte> byteDatas = new List<byte>();
-                            for (key += 1; key < key + typeInfo.Count(type); key++) {
+                            CardValue limit = start + typeInfo.Count(type);
+                            for (CardValue key = start; key < limit; key++) {
                                 for (byte j = 0; j < Utility.GetSequenceRequireCount(type); j++) {
                                     byteDatas.Add(infos[key].byteDatas[j]);
                                 }
                             }
                             tipDatas.Add(byteDatas);
-                        } while ((infos[i].sequenceData[type].End - key) >= Utility.GetSequenceRequireLength(type));
+                            start += 1;
+                        } while ((infos[i].sequenceData[type].End - start) >= typeInfo.Count(type) - 1);
+                        i = infos[i].sequenceData[type].End;
+
                     }
                 }
             }
@@ -342,7 +377,7 @@ namespace AnalyseCards {
             for (byte i = 0; i < tipDatas.Count; i++) {
                 str += "提示" + i + ":\t";
                 foreach (byte byteData in tipDatas[i]) {
-                    str += Utility.GetCardValue(byteData) +"(" + byteData + "),\t";
+                    str += Utility.GetCardValue(byteData) + "(" + byteData + "),\t";
                 }
                 str += "\r\n";
             }
@@ -376,14 +411,15 @@ namespace AnalyseCards {
                 isHaveSequence = Utility.GetSequenceInfo(infos, type, startValue, out sequenceStart, out sequenceEnd);
                 if (isHaveSequence) {
                     SetSequenceInfo(type, sequenceStart, sequenceEnd);
-                    startValue = sequenceEnd + 1;
                 }
-            } while (isHaveSequence);
+                startValue = sequenceEnd + 1;
+            } while (startValue < ConstData.maxSequenceValue);
         }
         void SetSequenceInfo(CardType type, CardValue start, CardValue end) {
             for (CardValue i = start; i <= end; i++) {
                 infos[i].sequenceData[type].Start = start;
                 infos[i].sequenceData[type].End = end;
+                infos[i].type |= type;
             }
         }
     }

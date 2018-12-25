@@ -96,10 +96,12 @@ namespace AnalyseCards {
         }
         public int CompareTo(TypeInfo info, CardType type) {
             CardType sequenceType = CardType.sequence | CardType.sequencePair | CardType.sequenceThree | CardType.sequenceThreeSingle | CardType.sequenceThreePair;
-            if (type == info.type && (type & sequenceType) != 0) {
-                return sequenceData[type].CompareTo(info.sequenceData[type]);
+            if (Utility.IsAnyOfType(info, sequenceType)) {
+                if (Utility.IsContainType(info, type)) {
+                    return sequenceData[type].CompareTo(info.sequenceData[type]);
+                }
             }
-            return 0;
+            return -1;
         }
         public override string ToString() {
             string str = "\r\nmainValue:\t" + mainValue;
@@ -266,8 +268,14 @@ namespace AnalyseCards {
             CardInfoToListByte(infos, datas);
             return GetOnlyTypeInfo(datas);
         }
-        public static bool IsType(TypeInfo info, CardType type) {
+        public static bool IsContainType(TypeInfo info, CardType type) {
             if ((info.type & type) == type) {
+                return true;
+            }
+            return false;
+        }
+        public static bool IsAnyOfType(TypeInfo info, CardType type) {
+            if ((info.type & type) != 0) {
                 return true;
             }
             return false;
