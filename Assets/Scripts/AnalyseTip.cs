@@ -59,8 +59,10 @@ namespace AnalyseCards {
                 case CardType.bombSingle:
                     GetBombForOther();
                     GetBombSingle();
-                    SplitPairToBombSingle();
-                    SplitThreeToBombSingle();
+                    break;
+                case CardType.bombPair:
+                    GetBombForOther();
+                    GetBombPair();
                     break;
             }
         }
@@ -236,6 +238,16 @@ namespace AnalyseCards {
                 }
             }
         }
+        void ShowTipDatas() {
+            string str = "\r\ntipDatas数据\r\n";
+            foreach (List<byte> listByte in tipDatas) {
+                str += "\r\n提示:\t";
+                foreach (byte b in listByte) {
+                    str += b + ",\t";
+                }
+                Debug.LogError(str + "\r\n");
+            }
+        }
         void GetBomb() {
             if (onlyTypeInfo[CardType.bomb].Count > 0) {
                 foreach (CardValue cardValue in onlyTypeInfo[CardType.bomb]) {
@@ -250,7 +262,7 @@ namespace AnalyseCards {
             if (onlyTypeInfo[CardType.bomb].Count > 0) {
                 foreach (CardValue value in onlyTypeInfo[CardType.bomb]) {
                     if (value > typeInfo.mainValue) {
-                        listBomb.Add(infos[value].byteDatas);
+                        listBomb.Add(new List<byte>(infos[value].byteDatas));
                     }
                 }
             }
@@ -266,61 +278,13 @@ namespace AnalyseCards {
                 }
             }
         }
-        void SplitPairToBombSingle() {
-            if (tipDatas.Count > 0) {
-                return;
-            }
+        void GetBombPair() {
             List<List<byte>> listBomb = GetBombSingleBomb();
-            List<byte> postfix = new List<byte>();
-            if (listBomb.Count > 0) {
-                if (onlyTypeInfo[CardType.single].Count == 1) {
-                    postfix.AddRange(infos[onlyTypeInfo[CardType.single][0]].byteDatas);
-                    if (onlyTypeInfo[CardType.pair].Count > 0) {
-                        postfix.Add(infos[onlyTypeInfo[CardType.pair][0]].byteDatas[0]);
-                    }
-                }
-                if (onlyTypeInfo[CardType.single].Count == 0 && onlyTypeInfo[CardType.pair].Count > 1) {
-                    postfix.Add(infos[onlyTypeInfo[CardType.pair][0]].byteDatas[0]);
-                    postfix.Add(infos[onlyTypeInfo[CardType.pair][1]].byteDatas[0]);
-                }
-                if (postfix.Count == 2) {
-                    foreach (List<byte> listByte in listBomb) {
-                        listByte.AddRange(postfix);
-                        tipDatas.Add(listByte);
-                    }
-                }
-            }
-        }
-        void SplitThreeToBombSingle() {
-            if (tipDatas.Count > 0) {
-                return;
-            }
-            List<List<byte>> listBomb = GetBombSingleBomb();
-            List<byte> postfix = new List<byte>();
-            if (listBomb.Count > 0) {
-                if (onlyTypeInfo[CardType.single].Count == 1) {
-                    postfix.AddRange(infos[onlyTypeInfo[CardType.single][0]].byteDatas);
-                    if (onlyTypeInfo[CardType.three].Count > 0) {
-                        postfix.Add(infos[onlyTypeInfo[CardType.pair][0]].byteDatas[0]);
-                    }
-                }
-                if (onlyTypeInfo[CardType.single].Count == 0) {
-                    if (onlyTypeInfo[CardType.pair].Count == 1) {
-                        postfix.Add(infos[onlyTypeInfo[CardType.pair][0]].byteDatas[0]);
-                        if (onlyTypeInfo[CardType.three].Count > 0) {
-                            postfix.Add(infos[onlyTypeInfo[CardType.three][0]].byteDatas[0]);
-                        }
-                    }
-                    if (onlyTypeInfo[CardType.pair].Count == 0 && onlyTypeInfo[CardType.three].Count > 1) {
-                        postfix.Add(infos[onlyTypeInfo[CardType.three][0]].byteDatas[0]);
-                        postfix.Add(infos[onlyTypeInfo[CardType.three][1]].byteDatas[0]);
-                    }
-                }
-                if (postfix.Count == 2) {
-                    foreach (List<byte> listByte in listBomb) {
-                        listByte.AddRange(postfix);
-                        tipDatas.Add(listByte);
-                    }
+            if (listBomb.Count > 0 && onlyTypeInfo[CardType.pair].Count > 1) {
+                foreach (List<byte> listByte in listBomb) {
+                    listByte.AddRange(infos[onlyTypeInfo[CardType.pair][0]].byteDatas);
+                    listByte.AddRange(infos[onlyTypeInfo[CardType.pair][1]].byteDatas);
+                    tipDatas.Add(listByte);
                 }
             }
         }
