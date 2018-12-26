@@ -9,7 +9,7 @@ namespace AnalyseCards {
         bool IsGreater(byte[] datas1, byte[] datas2);
         byte[] GetTipDatas(byte[] datas);
     }
-    class Analyse : MonoBehaviour {
+    class Analyse {
         static Analyse instance;
         public static Analyse Instance {
             get {
@@ -36,8 +36,13 @@ namespace AnalyseCards {
         //}
         public byte[] GetTipDatas(byte[] byteDatasHave, byte[] byteDatasType, bool isReadCache = true) {
             TypeInfo typeInfo = analyseType.GetTypeInfo(byteDatasType);
+            if (typeInfo.type == CardType.none) {
+                TypeInfo typeInfoHave = analyseType.GetTypeInfo(byteDatasHave);
+                if (typeInfoHave.type != CardType.none) {
+                    return byteDatasHave;
+                }
+            }
             byte[] tipDatas = analyseTip.GetTipDatas(byteDatasHave, typeInfo, isReadCache);
-            Debug.LogError(analyseTip.ToString());
             analyseTipInfo = analyseTip.ToString();
             return tipDatas;
         }

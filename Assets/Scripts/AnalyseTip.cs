@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using UnityEngine;
 
 namespace AnalyseCards {
-    class AnalyseTip : MonoBehaviour {
+    class AnalyseTip {
         byte tipIndex = 0;
         public byte[] GetTipDatas(byte[] byteDatas, TypeInfo typeInfo, bool isReadCache = true) {
             if (isReadCache) {
@@ -16,12 +16,53 @@ namespace AnalyseCards {
                 Utility.PrepareDatas(byteDatas, out infos);
                 onlyTypeInfo = Utility.GetOnlyTypeInfo(infos);
                 SetInfos();
-                GetDatas();
+                if (typeInfo.type != CardType.none) {
+                    GetDatas();
+                } else {
+                    GetBest();
+                }
             }
             if (tipDatas.Count < 1) {
                 return null;
             }
             return tipDatas[tipIndex % tipDatas.Count].ToArray();
+        }
+
+        void GetBest() {
+            List<byte> listBytes = new List<byte>();
+            foreach (KeyValuePair<CardValue, TypeInfo> item in infos) {
+                CardType type = CardType.none;
+                if (Utility.IsAnyOfType(item.Value, Utility.sequenceType)) {
+                    if (Utility.IsContainType(item.Value, CardType.sequenceThree)) {
+                        type = CardType.sequenceThree;
+                    } else if (Utility.IsContainType(item.Value, CardType.sequencePair)) {
+                        type = CardType.sequencePair;
+                    } else  if (Utility.IsContainType(item.Value, CardType.sequence)) {
+                        type = CardType.sequence;
+                    }
+                    for (CardValue key = item.Value.sequenceData[type].Start; key <= item.Value.sequenceData[type].End; key++) {
+                        if (Utility.IsContainType(infos[key], CardType.bomb)) {
+                            listBytes.Clear();
+                            break;
+                        }
+                        for (byte i = 0; i < Utility.GetSequenceRequireCount(type); i++) {
+                            listBytes.Add(infos[key].byteDatas[i]);
+                        }
+                    }
+                } else if (!Utility.IsContainType(item.Value, CardType.bomb)) {
+                    listBytes.AddRange(item.Value.byteDatas);
+                }
+                if (listBytes.Count > 0) {
+                    break;
+                }
+            }
+            tipDatas.Add(listBytes);
+        }
+        bool IsJoker(CardValue value) {
+            if (value == CardValue.blackJoker || value == CardValue.redJoker) {
+                return true;
+            }
+            return false;
         }
         void GetDatas() {
             switch (typeInfo.type) {
@@ -112,6 +153,9 @@ namespace AnalyseCards {
         void GetSingle() {
             if (onlyTypeInfo[CardType.single].Count > 0) {
                 foreach (CardValue cardValue in onlyTypeInfo[CardType.single]) {
+                    if (IsHaveRocket() && cardValue == CardValue.blackJoker || cardValue == CardValue.redJoker) {
+                        continue;
+                    }
                     if (cardValue > typeInfo.mainValue) {
                         tipDatas.Add(infos[cardValue].byteDatas);
                     }
@@ -337,6 +381,12 @@ namespace AnalyseCards {
             if (infos.ContainsKey(CardValue.blackJoker) && infos.ContainsKey(CardValue.redJoker)) {
                 tipDatas.Add(new List<byte> { infos[CardValue.blackJoker].byteDatas[0], infos[CardValue.redJoker].byteDatas[0] });
             }
+        }
+        bool IsHaveRocket() {
+            if (infos.ContainsKey(CardValue.blackJoker) && infos.ContainsKey(CardValue.redJoker)) {
+                return true;
+            }
+            return false;
         }
         List<List<byte>> sequenceThreeList;
         void GetSequence(CardType type) {

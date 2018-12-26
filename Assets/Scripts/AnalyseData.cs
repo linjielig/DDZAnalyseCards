@@ -5,6 +5,7 @@ using System;
 
 namespace AnalyseCards {
     enum CardValue {
+        min = 2,
         three = 3,
         four = 4,
         five = 5,
@@ -79,7 +80,7 @@ namespace AnalyseCards {
             return str;
         }
     }
-    class TypeInfo : MonoBehaviour {
+    class TypeInfo {
         public CardType type { get; set; }
         public CardValue mainValue { get; set; }
         public Dictionary<CardType, SequenceData> sequenceData = new Dictionary<CardType, SequenceData>();
@@ -95,8 +96,7 @@ namespace AnalyseCards {
             sequenceData.Add(CardType.sequenceThree, new SequenceData());
         }
         public int CompareTo(TypeInfo info, CardType type) {
-            CardType sequenceType = CardType.sequence | CardType.sequencePair | CardType.sequenceThree | CardType.sequenceThreeSingle | CardType.sequenceThreePair;
-            if (Utility.IsAnyOfType(info, sequenceType)) {
+            if (Utility.IsAnyOfType(info, Utility.sequenceType)) {
                 if (Utility.IsContainType(info, type)) {
                     return sequenceData[type].CompareTo(info.sequenceData[type]);
                 }
@@ -122,6 +122,7 @@ namespace AnalyseCards {
         }
     }
     static class Utility {
+        public static CardType sequenceType = CardType.sequence | CardType.sequencePair | CardType.sequenceThree | CardType.sequenceThreeSingle | CardType.sequenceThreePair;
         public static byte GetSequenceRequireCount(CardType type) {
             switch (type) {
                 case CardType.sequence:
@@ -222,10 +223,14 @@ namespace AnalyseCards {
             datas = new SortedDictionary<CardValue, List<byte>>();
             for (int i = 0; i < byteDatas.Length; i++) {
                 CardValue key = GetCardValue(byteDatas[i]);
-                if (!datas.ContainsKey(key)) {
-                    datas.Add(key, new List<byte>());
+                if (key >= ConstData.minCardValue && key <= ConstData.maxCardValue) {
+                    if (!datas.ContainsKey(key)) {
+                        datas.Add(key, new List<byte>());
+                    }
+                    datas[key].Add(byteDatas[i]);
+                } else {
+                    Debug.LogError("纸牌数据错误。");
                 }
-                datas[key].Add(byteDatas[i]);
             }
         }
         public static void PrepareDatas(byte[] byteDatas, out SortedDictionary<CardValue, TypeInfo> infos) {
@@ -283,6 +288,12 @@ namespace AnalyseCards {
         }
         public static bool IsAnyOfType(TypeInfo info, CardType type) {
             if ((info.type & type) != 0) {
+                return true;
+            }
+            return false;
+        }
+        public static bool IsOnlyType(TypeInfo info, CardType type) {
+            if ((info.type | type) == type) {
                 return true;
             }
             return false;
